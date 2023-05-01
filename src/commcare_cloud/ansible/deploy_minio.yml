@@ -22,8 +22,8 @@
 
   roles:
     - role: ricsanfre.minio
-      minio_root_user: "miniadmin"
-      minio_root_password: "supers1cret0"
+      minio_root_user: {{ MINIO_ACCESS_KEY }}
+      minio_root_password: {{ MINIO_SECRET_KEY }}
       minio_enable_tls: true
       minio_url: "https://{{ server_hostname }}:{{ minio_server_port }}"
       minio_buckets:
