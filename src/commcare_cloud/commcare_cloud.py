@@ -1,8 +1,4 @@
 # coding=utf-8
-from __future__ import print_function
-from __future__ import absolute_import
-
-from __future__ import unicode_literals
 import inspect
 import os
 import shlex
@@ -16,14 +12,13 @@ from commcare_cloud.cli_utils import print_command
 from commcare_cloud.colors import color_error
 from commcare_cloud.commands.ansible.downtime import Downtime
 from commcare_cloud.commands.clean_releases import CleanReleases
-from commcare_cloud.commands.deploy.command import Deploy
+from commcare_cloud.commands.deploy.command import Deploy, DeployDiff
 from commcare_cloud.commands.migrations.couchdb import MigrateCouchdb
 from commcare_cloud.commands.migrations.copy_files import CopyFiles
 from commcare_cloud.commands.preindex_views import PreindexViews
 from commcare_cloud.commands.secrets import Secrets, MigrateSecrets
 from commcare_cloud.commands.sentry import ExportSentryEvents
 from commcare_cloud.commands.terraform.aws import AwsList, AwsFillInventory, AwsSignIn
-from commcare_cloud.commands.terraform.openvpn import OpenvpnActivateUser, OpenvpnClaimUser
 from commcare_cloud.commands.terraform.terraform import Terraform
 from commcare_cloud.commands.terraform.terraform_migrate_state import TerraformMigrateState
 from commcare_cloud.commands.validate_environment_settings import ValidateEnvironmentSettings
@@ -45,7 +40,7 @@ from .commands.ansible.run_module import (
     SendDatadogEvent,
 )
 from .commands.fab import Fab
-from .commands.inventory_lookup.inventory_lookup import Lookup, Ssh, DjangoManage, Tmux, ForwardPort
+from .commands.inventory_lookup.inventory_lookup import Lookup, Ssh, Scp, Rsync, DjangoManage, Tmux, ForwardPort
 from .commands.ansible.ops_tool import ListDatabases, CeleryResourceReport, PillowResourceReport, \
     CouchDBClusterInfo, AuditEnvironment, UpdateLocalKnownHosts, PillowTopicAssignments
 from commcare_cloud.commands.command_base import CommandBase, Argument, CommandError
@@ -63,6 +58,8 @@ COMMAND_GROUPS = OrderedDict([
         Lookup,
         Ssh,
         AuditEnvironment,
+        Scp,
+        Rsync,
         RunAnsibleModule,
         RunShellCommand,
         SendDatadogEvent,
@@ -85,6 +82,7 @@ COMMAND_GROUPS = OrderedDict([
         UpdateSupervisorConfs,
         Fab,
         Deploy,
+        DeployDiff,
         ListReleases,
         CleanReleases,
         PreindexViews,
@@ -103,8 +101,6 @@ COMMAND_GROUPS = OrderedDict([
         AwsSignIn,
         AwsList,
         AwsFillInventory,
-        OpenvpnActivateUser,
-        OpenvpnClaimUser,
         ForwardPort,
     ])
 ])
@@ -211,9 +207,9 @@ def call_commcare_cloud(input_argv=sys.argv):
     # throw error if user is attempting to use python 2
     if not os.environ.get("CI_TEST") and sys.version_info[0] == 2:
         exit(dedent("""
-            Error: you must upgrade to Python 3. Python 2 is no longer supported.
+            Error: you must upgrade to Python 3. Python 2 is not supported.
 
-            To setup Python 3.6, see
+            To setup Python 3.10, see
             https://commcare-cloud.readthedocs.io/en/latest/reference/1-commcare-cloud/1-installation.html#manual-installation
             """))
 

@@ -5,13 +5,11 @@
 
 {{ __proxy6__ }}
 {{ __proxy8__ }}
-{{ __proxy9__ }}
 
 [proxy:children]
 # Amazon EC2
 proxy6
 proxy8
-proxy9
 
 [logproxy:children]
 proxy
@@ -55,16 +53,14 @@ pgshard_nlb
 [pgbouncer:children]
 pgbouncer2
 
-{{ __couch22__ }}
-
-{{ __couch23__ }}
-
 {{ __couch24__ }}
+{{ __couch25__ }}
+{{ __couch27__ }}
 
 [couchdb2:children]
-couch22
-couch23
 couch24
+couch25
+couch27
 
 [couchdb2_proxy:children]
 couch_alb
@@ -80,26 +76,31 @@ couch_alb
 rabbit_a3
 rabbit_b2
 
-{{ __kafka12__ }} kafka_broker_id=12 zookeeper_server_id=12
-{{ __kafka13__ }} kafka_broker_id=13 zookeeper_server_id=13
-{{ __kafka14__ }} kafka_broker_id=14 zookeeper_server_id=14
+{{ __kafka15__ }} kafka_broker_id=15 zookeeper_server_id=15
+{{ __kafka16__ }} kafka_broker_id=16 zookeeper_server_id=16
+{{ __kafka17__ }} kafka_broker_id=17 zookeeper_server_id=17
 
 [zookeeper:children]
 # Amazon EC2
-kafka12
-kafka13
-kafka14
+kafka15
+kafka16
+kafka17
 
 [kafka:children]
 # Amazon EC2
-kafka12
-kafka13
-kafka14
+kafka15
+kafka16
+kafka17
 
 {{ __celery_a1__ }}
+{{ __celery_a2__ }}
 
 [celery:children]
 celery_a1
+celery_a2
+
+# [celery_a2:vars]
+# celery_broker_migration=true
 
 [celery:vars]
 swap_size=2G
@@ -174,9 +175,6 @@ webworkers
 [control:children]
 control3
 
-[awsmq]
-{{ aws_resources['staging-mq-broker'] }}
-
 [ansible_skip:children]
 rds_pg0
 rds_pgformplayer0
@@ -186,7 +184,6 @@ pgucr_nlb
 pgsynclogs_nlb
 pgshard_nlb
 couch_alb
-awsmq
 
 
 [django_manage:children]

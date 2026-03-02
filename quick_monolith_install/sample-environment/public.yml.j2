@@ -2,8 +2,11 @@
 {% endraw %}
 elasticsearch_memory: '2048m'
 elasticsearch_cluster_name: '{{env_name}}-es'
-elasticsearch_version: 2.4.6
-elasticsearch_download_sha256: 5f7e4bb792917bb7ffc2a5f612dfec87416d54563f795d6a70637befef4cfc6f.
+elasticsearch_version: 6.8.23
+elasticsearch_download_sha256: 424af91f838f9e5f13e0292f97cbd6333535450291a621d761bd479dfc2dff78.
+
+formplayer_java_version: {% raw %}"{{ java_17_bin_path }}/java"
+{% endraw %}
 
 backup_blobdb: True
 backup_postgres: 'plain'
@@ -12,7 +15,7 @@ backup_couch: True
 postgres_s3: False
 blobdb_s3: False
 couch_s3: False
-
+couchdb_version: 3.3.1
 
 couchdb2:
   username: {% raw %}"{{ localsettings_private.COUCH_USERNAME }}"
@@ -27,6 +30,7 @@ couchdb_cluster_settings:
   n: 1
 
 couchdb_use_haproxy: True
+haproxy_version: 2.4
 couch_dbs:
   default:
     host: 127.0.0.1
@@ -78,7 +82,7 @@ localsettings:
   COUCH_STALE_QUERY: 'update_after'
   DEPLOY_MACHINE_NAME: {% raw %}"{{ ansible_hostname }}"
 {% endraw %}
-  ELASTICSEARCH_MAJOR_VERSION: 2
+  ELASTICSEARCH_MAJOR_VERSION: 6
   EMAIL_SMTP_HOST: 'localhost'
   EMAIL_SMTP_PORT: 25
   EMAIL_USE_TLS: no
@@ -89,10 +93,10 @@ localsettings:
   HUBSPOT_ACCESS_TOKEN:
   INVOICE_FROM_ADDRESS:
     'name': "Dimagi, Inc."
-    'first_line': "585 Massachusetts Ave"
+    'first_line': "245 Main St, 2nd Floor"
     'city': "Cambridge"
     'region': "MA"
-    'postal_code': "02139"
+    'postal_code': "02142"
     'country': "US"
     'phone_number': "(617) 649-2214"
     'email': "accounts@dimagi.com"

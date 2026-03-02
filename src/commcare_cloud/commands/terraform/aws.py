@@ -1,10 +1,9 @@
 # coding=utf-8
-from __future__ import absolute_import, print_function, unicode_literals
-
+import configparser
 import json
 import os
+import shlex
 import subprocess
-import textwrap
 from datetime import datetime
 from dateutil import parser
 import pytz
@@ -17,7 +16,6 @@ import yaml
 from clint.textui import puts
 from memoized import memoized
 from simplejson import JSONDecodeError
-from six.moves import configparser, input, shlex_quote
 
 from commcare_cloud.cli_utils import print_command
 from commcare_cloud.colors import color_notice, color_success
@@ -32,12 +30,26 @@ def check_output(cmd_parts, env, silent=False):
     env_vars = os.environ.copy()
     env_vars.update(env)
     if not silent:
-        cmd = ' '.join(shlex_quote(arg) for arg in cmd_parts)
+        cmd = ' '.join(shlex.quote(arg) for arg in cmd_parts)
         print_command('{} {}'.format(
             ' '.join('{}={}'.format(key, value) for key, value in env.items()),
             cmd,
         ))
     return subprocess.check_output(cmd_parts, env=env_vars)
+
+
+def run(cmd_parts, env, silent=False):
+
+    env_vars = os.environ.copy()
+    env_vars.update(env)
+    if not silent:
+        cmd = ' '.join(shlex.quote(arg) for arg in cmd_parts)
+        print_command('{} {}'.format(
+            ' '.join('{}={}'.format(key, value) for key, value in env.items()),
+            cmd,
+        ))
+    # check=True to raise error if results in non-zero exit status
+    return subprocess.run(cmd_parts, env=env_vars, check=True)
 
 
 def aws_cli(environment, cmd_parts):
@@ -78,18 +90,6 @@ def get_aws_resources(environment):
         '--query', 'DBInstances[*].[DBInstanceIdentifier,Endpoint.Address]',
         '--output', 'json', '--region', config.region,
     ])
-
-    awsmq_info = [{
-        'brokerid': brokerid,
-        'brokername': brokername,
-        'endpoint': '{brokerid}.mq.{config.region}.amazonaws.com:5671'.format(brokerid=brokerid, config=config)
-    } for brokername, brokerid in aws_cli(environment, [
-        'aws', 'mq', 'list-brokers',
-        '--query', 'BrokerSummaries[*].[BrokerName,BrokerId]',
-        "--output", "json",
-        "--region", config.region,
-    ])]
-
 
     nlb_endpoints = aws_cli(environment, [
         'aws', 'elbv2', 'describe-load-balancers',
@@ -149,9 +149,6 @@ def get_aws_resources(environment):
     for info in fsx_info:
         resources['{name}-fsx'.format(**info)] = info['fsx_dns']
 
-    for info in awsmq_info:
-        resources[info['brokername']] = info['endpoint']
-
     return resources
 
 
@@ -198,7 +195,6 @@ class AwsFillInventory(CommandBase):
                 f.write(yaml.safe_dump(resources, default_flow_style=False))
         else:
             with open(environment.paths.aws_resources_yml, 'r', encoding='utf-8') as f:
-                # PY2: yaml.safe_load will return bytes when the content is ASCII-only bytes
                 resources = yaml.safe_load(f.read())
 
         with open(environment.paths.inventory_ini_j2, 'r', encoding='utf-8') as f:
@@ -210,7 +206,6 @@ class AwsFillInventory(CommandBase):
             # reflecting that we were unable to create it
             out_string = AwsFillInventoryHelper(environment, inventory_ini_j2,
                                                 resources).render()
-            # PY2: out_string is unicode based on Jinja2 render method
             f.write(out_string)
 
 
@@ -414,7 +409,10 @@ def _aws_sign_in_with_sso(environment):
     aws_session_profile = '{}:session'.format(environment.terraform_config.aws_profile)
     # todo: add `... or if _date_modified(AWS_CONFIG_PATH) > _date_modified(AWS_CREDENTIALS_PATH)`
     if not _has_profile_for_sso(aws_session_profile):
-        puts(color_notice("Configuring SSO. To further customize, run `aws configure sso --profile {}`".format(aws_session_profile)))
+        puts(color_notice(
+            "Configuring SSO. To further customize, run `aws configure sso "
+            "--profile {}`".format(
+                aws_session_profile)))
         _write_profile_for_sso(
             aws_session_profile,
             sso_start_url=environment.aws_config.sso_config.sso_start_url,
@@ -452,6 +450,8 @@ def _sync_sso_to_v1_credentials(aws_session_profile):
             try:
                 data = json.load(f)
             except JSONDecodeError:
+                continue
+            except UnicodeDecodeError:
                 continue
 
             if data.get('ProviderType') != 'sso':
@@ -627,7 +627,7 @@ def _has_valid_session_credentials_for_sso():
 
 
 def _refresh_sso_credentials(aws_session_profile):
-    check_output(['aws', 'sso', 'login'], env={'AWS_PROFILE': aws_session_profile})
+    run(['aws', 'sso', 'login'], env={'AWS_PROFILE': aws_session_profile})
 
 
 def _has_valid_v1_session_credentials(aws_profile):

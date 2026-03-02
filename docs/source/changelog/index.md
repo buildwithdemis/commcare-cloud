@@ -7,6 +7,133 @@ need to be applied on your environment to keep it up to date.
 
 ### Changelog
 
+#### **2026-01-06** [Deprecating rabbitmq_migration_bridge var](0094-deprecating-rabbitmq-migration-bridge.md)
+``rabbitmq_migration_bridge`` var is being replaced by
+``celery_broker_migration``
+
+
+---
+#### **2026-01-01** [Remove Old NodeSource Files](0093-remove-old-nodesource-files.md)
+Remove no longer needed NodeSource files that break ``apt``.
+
+
+---
+#### **2025-12-03** [Upgrade To NodeJS 24](0092-upgrade-to-node-24.md)
+Node.js 20.x LTS is reaching its end of life 30th April 2026, so node and npm must be upgraded on all machines.
+
+
+---
+#### **2025-11-05** [upgrade-to-nginx-1-28](0091-upgrade-to-nginx-1-28.md)
+Updates nginx to 1.28.
+
+
+---
+#### **2025-10-08** [Enabling Datadog tracing (APM)](0090-Enabling_Datadog_tracing_APM.md)
+Configuration for enabling Datadog tracing with APM has changed. If you
+use this feature you may need to update your configuration.
+
+
+---
+#### **2025-07-10** [Remove PARSER_CLASS from redis settings](0089-remove-parser-class.md)
+We've remove the PARSER_CLASS when configuring redis in settings.py.
+
+
+---
+#### **2025-05-08** [Install uv for Python dependency management](0088-install-uv.md)
+CommCare HQ is moving to using `uv` for Python dependency management, which
+simplifies and speeds up dependency installation.
+
+
+---
+#### **2025-04-16** [Upgrade to Elasticsearch 6](0087-upgrade-to-es-6.md)
+Upgrade to Elasticsearch 6.
+This changelog outlines the steps required to `reindex` all indices and then perform the upgrade from Elasticsearch 5.6.16 to 6.8.23.
+
+
+---
+#### **2025-03-27** [AWS S3 Client Library Upgrade](0086-s3-library-upgrade.md)
+The `botocore` library is being upgraded in CommCare HQ. A blob db
+configuration change may be necessary prior to deploying the new version.
+
+
+---
+#### **2025-03-21** [Removing websockets](0085-remove_websockets.md)
+All code related to websockets is being removed from both CommCare HQ and CommCare-Cloud.
+
+
+---
+#### **2024-11-06** [New Geospatial Celery Queue](0084-add-geospatial-queue.md)
+The Microplanning feature requires the location properties on cases to be indexed correctly so
+that they can be used correctly in this feature. A separate queue is added to handle this indexing
+process when the Microplanning feature is enabled for a domain. This can potentially be a long-running
+task, and so having a separate queue ensures that other queues do not get clogged up by this indexing task.
+
+
+---
+#### **2024-10-25** [Database Backup Retention Change](0083-database_backup_retention_change.md)
+The logic used to retain database backups has been modified to better respect the settings that specify
+how many days to keep backups.
+
+
+---
+#### **2024-07-25** [Unicel SMS Gateway Removal](0082-unicel-sms-gateway-removal.md)
+This is a notice specifically for projects with Unicel configured as an SMS gateway, which is no longer functional.
+Projects that are not using the Unicel gateway do not need to take any action.
+
+
+---
+#### **2024-06-18** [SQL Repeat Record Migration - Delete Unused Couch Data](0081-delete-receiverwrapper-couch-db.md)
+Optional: Delete unused forwarding data from Couch.
+
+
+---
+#### **2024-04-30** [Copy Supply Point data to Invitation model Location Field](0080-copy-invitation-supply-point-fields-to-location.md)
+Copy data from `supply_point` field to `location` field in `Invitation` model to prevent errors with
+future migrations to the `users_invitation` table.
+
+This operation is required for all environments regardless of feature usage.
+
+
+---
+#### **2024-02-13** [SQL Repeat Record Migration addendum](0079-sql-repeatrecord-addendum.md)
+Optional: Copy repeat records with deleted repeaters from Couch to SQL
+
+
+---
+#### **2024-03-29** [Upgrade To Node 20](0078-upgrade-to-node-20.md)
+Node.js 16.x LTS is reaching its end of life 15th June 2024, so node and npm must be upgraded on all machines.
+
+
+---
+#### **2024-02-13** [SQL Repeat Record Migration](0077-sql-repeatrecord-pr1.md)
+Prepare for and migrate Repeat Records from Couch to SQL.
+
+
+---
+#### **2024-01-14** [Elasticsearch upgrade from 2.4.6 to 5.6.16](0076-upgrade-to-es-5.md)
+Upgrade to Elasticsearch 5.
+
+CommCare HQ releases after March 1, 2024 will not support Elasticsearch 2.x.
+So we strongly recommend applying this change before then.
+
+
+---
+#### **2023-10-25** [Reindex All Indices For Elasticsearch Upgrade](0075-reindex-all-indexes-for-es-upgrade.md)
+Reindex Elasticsearch Indices for upcoming ES Upgrade.
+
+
+---
+#### **2023-09-12** [update-to-python-3.9.18](0074-update-to-python-3.9.18.md)
+Installs python 3.9.18 and build a new virutalenv for CommCare HQ
+
+
+---
+#### **2023-06-14** [Prepare project spaces for Case List Explorer report release](0073-prepare-for-cle-ga.md)
+We have created a management command to assist with syncing data to the Case Search Index so that legacy projects 
+may access data in a new report that will be made generally available.
+
+
+---
 #### **2023-04-10** [upgrade-redis-to-v7](0072-upgrade-redis-to-v7.md)
 This change upgrade Redis from 6.x to 7.0 version.
 As part of our ongoing effort to keep CommCare HQ up to date with the latest tools and libraries we have updated Redis from version 6.2 to version 7.0.

@@ -1,7 +1,4 @@
 # coding=utf-8
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
 import os
 import re
 import shlex
@@ -15,7 +12,7 @@ from clint.textui import puts
 from commcare_cloud.alias import commcare_cloud
 from commcare_cloud.cli_utils import ask, has_arg, check_branch, print_command, has_local_connection_arg
 from commcare_cloud.user_utils import get_dev_username
-from commcare_cloud.colors import color_error, color_notice, color_code
+from commcare_cloud.colors import color_error, color_warning, color_notice, color_code
 from commcare_cloud.commands import shared_args
 from commcare_cloud.commands.ansible.helpers import (
     AnsibleContext, DEPRECATED_ANSIBLE_ARGS,
@@ -141,12 +138,9 @@ def run_ansible_playbook(
         env_vars = ansible_context.build_env()
         cmd_parts += get_user_arg(public_vars, unknown_args, use_factory_auth)
 
-        if has_arg(unknown_args, '-D', '--diff') or has_arg(unknown_args, '-C', '--check'):
-            puts(color_error("Options --diff and --check not allowed. "
-                             "Please remove -D, --diff, -C, --check."))
-            puts(color_error("These ansible-playbook options are managed automatically "
-                             "by commcare-cloud and cannot be set manually."))
-            return 2  # exit code
+        if has_arg(unknown_args, '-D', '--diff'):
+            puts(color_warning("WARNING: Redundant --diff option."))
+            puts(color_warning("This ansible-playbook option is managed automatically by commcare-cloud."))
 
         cmd_parts += environment.secrets_backend.get_extra_ansible_args()
 
@@ -166,6 +160,11 @@ def run_ansible_playbook(
 
     def run_apply():
         return ansible_playbook(playbook, *unknown_args)
+
+    if has_arg(unknown_args, '-C', '--check'):
+        # run once with --check if that arg was specified explicitly
+        with ansible_context.environment.secrets_backend.suppress_datadog_event():
+            return ansible_playbook(playbook, *unknown_args)
 
     return run_action_with_check_mode(run_check, run_apply, skip_check, quiet, always_skip_check)
 
@@ -391,12 +390,12 @@ class UpdateSupervisorConfs(_AnsiblePlaybookAlias):
         unknown_args += ('--tags=services',)
         rc = AnsiblePlaybook(self.parser).run(args, unknown_args)
         if ask("Would you like to update supervisor to use the new configurations?"):
-            carryover_args = []
-            if args.limit:
-                carryover_args.extend(['--limit', args.limit])
-            commcare_cloud(
-                args.env_name, 'run-shell-command', 'webworkers:celery:pillowtop:formplayer',
-                'supervisorctl reread; supervisorctl update', '-b', *carryover_args
+            run_ansible_playbook(
+                playbook='restart_commcare_services.yml',
+                ansible_context=AnsibleContext(args),
+                limit=args.limit,
+                skip_check=True,
+                quiet=True,
             )
         else:
             return rc

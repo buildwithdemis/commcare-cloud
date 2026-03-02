@@ -6,6 +6,7 @@ import pytz
 from memoized import memoized
 
 from commcare_cloud.alias import commcare_cloud
+from commcare_cloud.cli_utils import ask
 from commcare_cloud.colors import color_summary, color_error
 from commcare_cloud.commands.deploy.slack import notify_slack_deploy_start, notify_slack_deploy_end
 from commcare_cloud.user_utils import get_default_username
@@ -19,6 +20,7 @@ class DeployContext:
     revision = attr.ib()
     diff = attr.ib()
     start_time = attr.ib()
+    resume = attr.ib(default=False)
     metadata = attr.ib(factory=dict)
 
     @property
@@ -54,31 +56,34 @@ def record_deploy_start(environment, context):
 def send_deploy_start_email(environment, context):
     is_nonstandard_deploy_time = not within_maintenance_window(environment)
     is_non_default_branch = (
-        context.revision != environment.fab_settings_config.default_branch and
-        context.revision is not None
+        context.revision != environment.fab_settings_config.default_branch
+        and context.revision is not None
     )
     env_name = environment.meta_config.deploy_env
-    subject = f"{context.user} has initiated a {context.service_name} deploy to {env_name}"
+    message = f"{context.user} has initiated a {context.service_name} deploy to {env_name}"
     prefix = ""
     if is_nonstandard_deploy_time:
-        subject += " outside maintenance window"
+        message += " outside maintenance window"
         prefix = "ATTENTION: "
     if is_non_default_branch:
-        subject += f" with non-default branch '{context.revision}'"
+        message += f" with non-default branch '{context.revision}'"
         prefix = "ATTENTION: "
-    subject = f"{prefix}{subject}"
+    message = f"{prefix}{message}"
 
     send_email(
         environment,
-        subject=subject,
+        subject=message,
+        message=message,
     )
 
 
 def record_deploy_failed(environment, context):
     notify_slack_deploy_end(environment, context, is_success=False)
+    message = f"{context.service_name} deploy to {environment.name} failed"
     send_email(
         environment,
-        subject=f"{context.service_name} deploy to {environment.name} failed",
+        subject=message,
+        message=message,
     )
 
 
@@ -94,16 +99,19 @@ def announce_deploy_success(environment, context):
     )
 
 
-def send_email(environment, subject, message='', to_admins=True, recipients=None):
+def send_email(environment, subject, message, to_admins=True, recipients=None):
     """
     Call a Django management command to send an email.
 
-    :param environment: The Environement object
+    :param environment: The Environment object
     :param subject: Email subject
-    :param message: Email message
+    :param message: Email message body
     :param to_admins: True if mail should be sent to Django admins
     :param recipients: List of additional addresses to send mail to
     """
+    if not message:
+        raise ValueError('Some cloud hosting providers require a message body')
+
     if environment.fab_settings_config.email_enabled:
         print(color_summary(f">> Sending email: {subject}"))
         args = [
@@ -124,6 +132,20 @@ def send_email(environment, subject, message='', to_admins=True, recipients=None
             *args,
             show_command=False
         )
+
+
+def confirm_environment_time(environment, quiet=False):
+    if within_maintenance_window(environment):
+        return True
+    window = environment.fab_settings_config.acceptable_maintenance_window
+    d = datetime.now(pytz.timezone(window['timezone']))
+    message = (
+        "Whoa there bud! You're deploying '%s' outside the configured maintenance window. "
+        "The current local time is %s.\n"
+        "ARE YOU DOING SOMETHING EXCEPTIONAL THAT WARRANTS THIS?"
+    ) % (environment.name, d.strftime("%-I:%M%p on %h. %d %Z"))
+    return ask(message, quiet=quiet)
+
 
 def within_maintenance_window(environment):
     window = environment.fab_settings_config.acceptable_maintenance_window

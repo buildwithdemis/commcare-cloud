@@ -1,109 +1,113 @@
 account_alias: commcare-production
-terraform_version: '1.3'
+terraform_version: '1.13'
 state_bucket: dimagi-terraform
 state_bucket_region: "us-east-1"
 region: "us-east-1"
 environment: "production"
-ssl_policy: 'ELBSecurityPolicy-FS-1-2-Res-2020-10'
+ssl_policy: 'ELBSecurityPolicy-TLS13-1-2-Res-2021-06'
 azs:
   - "us-east-1a"
   - "us-east-1b"
   - "us-east-1c"
 vpc_begin_range: "10.202"
 
-openvpn_image: ami-5e73b923
 
 ec2_metadata_tokens_required: yes
 
 backup_plan:
   local_vault_name: "BusinessContinuity_Production_East-1"
-  remote_vault_name: "BusinessContinuity_Production_West-1"
-  remote_vault_region: us-west-1
+  remote_vault_name: "BusinessContinuity_Production_East-2"
+  remote_vault_region: us-east-2
   outside_account_id: '213307118311'
   daily_retention: 2
   weekly_retention: 14
   monthly_retention: 62
-  quarterly_retention: 365
+  quarterly_retention: 180
+  cold_storage_after : 8
 
 servers:
-  - server_name: "control3-production"
+  - server_name: "control4-production"
     server_instance_type: "t3a.large"
     network_tier: "app-private"
     az: "a"
     volume_size: 60
     volume_encrypted: yes
     group: "control"
-    os: bionic
+    os: jammy 
 
-  - server_name: "djangomanage_a0-production"
-    server_instance_type: m6a.xlarge
+  - server_name: "djangomanage_a1-production"
+    server_instance_type: r6a.large
     network_tier: "app-private"
     az: "a"
-    volume_size: 60
+    volume_size: 110
+    block_device:
+      volume_size: 500
+      enable_cross_region_backup: no
     group: "django_manage"
-    os: bionic
+    os: jammy 
 
   - server_name: "web_a2{i}-production"
-    server_instance_type: m6a.xlarge
+    server_instance_type: m8a.xlarge
     network_tier: "app-private"
     az: "a"
     volume_size: 40
     volume_encrypted: yes
     group: "hq_webworkers"
     os: jammy
-    count: 5
+    count: 2
     server_auto_recovery: true
 
   - server_name: "web_b2{i}-production"
-    server_instance_type: m6a.xlarge
+    server_instance_type: m8a.xlarge
     network_tier: "app-private"
     az: "b"
     volume_size: 40
     volume_encrypted: yes
     group: "hq_webworkers"
     os: jammy
-    count: 5
+    count: 2
     server_auto_recovery: true
 
-  - server_name: "web_c2{i}-production"
-    server_instance_type: m6a.xlarge
+  - server_name: "web_a_a{i}-production"
+    server_instance_type: m6a.2xlarge
     network_tier: "app-private"
-    az: "c"
+    az: "a"
     volume_size: 40
     volume_encrypted: yes
-    group: "hq_webworkers"
+    group: "api_webworkers"
     os: jammy
-    count: 5
+    count: 3
+    server_auto_recovery: true
+
+  - server_name: "web_a_b{i}-production"
+    server_instance_type: m6a.2xlarge
+    network_tier: "app-private"
+    az: "b"
+    volume_size: 40
+    volume_encrypted: yes
+    group: "api_webworkers"
+    os: jammy
+    count: 3
     server_auto_recovery: true
 
   - server_name: "web_m_a2{i}-production"
-    server_instance_type: m6a.xlarge
+    server_instance_type: r8a.xlarge
     network_tier: "app-private"
     az: "a"
     volume_size: 40
     group: "mobile_webworkers"
     os: jammy
-    count: 3
+    count: 2
     server_auto_recovery: true
 
   - server_name: "web_m_b2{i}-production"
-    server_instance_type: m6a.xlarge
+    server_instance_type: r8a.xlarge
     network_tier: "app-private"
     az: "b"
     volume_size: 40
     group: "mobile_webworkers"
     os: jammy
-    count: 3
-    server_auto_recovery: true
-
-  - server_name: "web_m_c2{i}-production"
-    server_instance_type: m6a.xlarge
-    network_tier: "app-private"
-    az: "c"
-    volume_size: 40
-    group: "mobile_webworkers"
-    os: jammy
-    count: 3
+    count: 2
     server_auto_recovery: true
 
   - server_name: "esmaster_a1-production"
@@ -114,7 +118,6 @@ servers:
     os: jammy 
     volume_size: 40
     volume_encrypted: yes
-    enable_cross_region_backup: yes
 
   - server_name: "esmaster_b1-production"
     server_instance_type: r6a.large
@@ -124,7 +127,6 @@ servers:
     os: jammy 
     volume_size: 40
     volume_encrypted: yes
-    enable_cross_region_backup: yes
 
   - server_name: "esmaster_c1-production"
     server_instance_type: r6a.large
@@ -134,7 +136,6 @@ servers:
     os: jammy
     volume_size: 40
     volume_encrypted: yes 
-    enable_cross_region_backup: yes
 
   - server_name: "es_a2{i}-production"
     server_instance_type: r6a.4xlarge
@@ -143,11 +144,11 @@ servers:
     volume_size: 30
     volume_encrypted: yes
     block_device:
-      volume_size: 2100
+      volume_size: 2800
       enable_cross_region_backup: yes
     group: "elasticsearch"
     os: jammy 
-    count: 7
+    count: 4
 
   - server_name: "es_b2{i}-production"
     server_instance_type: r6a.4xlarge
@@ -156,11 +157,35 @@ servers:
     volume_size: 30
     volume_encrypted: yes
     block_device:
-      volume_size: 2100
-      enable_cross_region_backup: yes
+      volume_size: 2800
     group: "elasticsearch"
     os: jammy 
-    count: 7
+    count: 4
+
+  - server_name: "es_a3{i}-production"
+    server_instance_type: r6a.4xlarge
+    network_tier: "db-private"
+    az: "a"
+    volume_size: 30
+    volume_encrypted: yes
+    block_device:
+      volume_size: 2800
+      enable_cross_region_backup: yes
+    group: "elasticsearch"
+    os: jammy
+    count: 3
+
+  - server_name: "es_b3{i}-production"
+    server_instance_type: r6a.4xlarge
+    network_tier: "db-private"
+    az: "b"
+    volume_size: 30
+    volume_encrypted: yes
+    block_device:
+      volume_size: 2800
+    group: "elasticsearch"
+    os: jammy
+    count: 3
 
   - server_name: "escoordinator_a1-production"
     server_instance_type: r6a.2xlarge
@@ -178,53 +203,45 @@ servers:
     group: "elasticsearch"
     os: jammy 
 
-  - server_name: "escoordinator_c1-production"
-    server_instance_type: r6a.2xlarge
-    network_tier: "db-private"
-    az: "c"
-    volume_size: 30
-    group: "elasticsearch"
-    os: jammy
-
-  - server_name: "couch11-production"
-    server_instance_type: c6a.8xlarge
-    network_tier: "db-private"
-    az: "c"
-    volume_size: 90
-    volume_encrypted: yes
-    block_device:
-      volume_size: 3500
-      encrypted: yes
-    group: "couchdb2"
-    os: bionic
-
-  - server_name: "couch12-production"
-    server_instance_type: c6a.8xlarge
+  - server_name: "couch_a0-production"
+    server_instance_type: m7a.4xlarge
     network_tier: "db-private"
     az: "a"
-    volume_size: 90
+    volume_size: 80
     volume_encrypted: yes
     block_device:
-      volume_size: 3500
+      volume_size: 1000
       encrypted: yes
       enable_cross_region_backup: yes
     group: "couchdb2"
-    os: bionic
-
-  - server_name: "couch13-production"
-    server_instance_type: c6a.8xlarge
+    os: jammy
+  
+  - server_name: "couch_a1-production"
+    server_instance_type: m7a.4xlarge
     network_tier: "db-private"
-    az: "a"
-    volume_size: 90
+    az: "c"
+    volume_size: 80
     volume_encrypted: yes
     block_device:
-      volume_size: 3500
+      volume_size: 1000
       encrypted: yes
     group: "couchdb2"
-    os: bionic
+    os: jammy
+  
+  - server_name: "couch_a2-production"
+    server_instance_type: m7a.4xlarge
+    network_tier: "db-private"
+    az: "a"
+    volume_size: 80
+    volume_encrypted: yes
+    block_device:
+      volume_size: 1000
+      encrypted: yes
+    group: "couchdb2"
+    os: jammy
 
   - server_name: "rabbit14-production"
-    server_instance_type: t3a.2xlarge
+    server_instance_type: c6a.xlarge
     network_tier: "db-private"
     az: "b"
     volume_size: 30
@@ -233,7 +250,7 @@ servers:
     os: jammy
 
   - server_name: "rabbit15-production"
-    server_instance_type: t3a.2xlarge
+    server_instance_type: t3a.xlarge
     network_tier: "db-private"
     az: "a"
     volume_size: 30
@@ -241,27 +258,37 @@ servers:
     group: "rabbitmq"
     os: jammy
 
+  - server_name: "celerybeat_a0-production"
+    server_instance_type: r6a.xlarge
+    network_tier: "app-private"
+    az: "a"
+    volume_size: 40
+    volume_encrypted: yes
+    group: "celery"
+    os: jammy
+
+  - server_name: "celery_a2{i}-production"
+    server_instance_type: r6a.2xlarge
+    network_tier: "app-private"
+    az: "a"
+    volume_size: 80
+    volume_encrypted: yes
+    group: "celery"
+    os: jammy
+    count: 2
+
   - server_name: "celery_b2{i}-production"
-    server_instance_type: r5.2xlarge
+    server_instance_type: r6a.2xlarge
     network_tier: "app-private"
     az: "b"
     volume_size: 80
     volume_encrypted: yes
     group: "celery"
     os: jammy
-    count: 4
-
-  - server_name: "celery_c2{i}-production"
-    server_instance_type: r5.2xlarge
-    network_tier: "app-private"
-    az: "c"
-    volume_size: 83
-    group: "celery"
-    os: jammy
-    count: 4
+    count: 2
 
   - server_name: "pillow_a2{i}-production"
-    server_instance_type: r5.12xlarge
+    server_instance_type: r8a.xlarge
     network_tier: "app-private"
     az: "a"
     volume_size: 100
@@ -270,7 +297,7 @@ servers:
     count: 1
 
   - server_name: "pillow_b2{i}-production"
-    server_instance_type: r5a.12xlarge
+    server_instance_type: r6a.2xlarge
     network_tier: "app-private"
     az: "b"
     volume_size: 50
@@ -282,18 +309,18 @@ servers:
     server_instance_type: r6a.2xlarge
     network_tier: "app-private"
     az: "a"
-    volume_size: 50
+    volume_size: 140
     volume_encrypted: yes
     group: "formplayer"
     os: jammy
-    count: 14
+    count: 10
     server_auto_recovery: true
 
   - server_name: "kafka_a1-production"
     server_instance_type: t3a.medium
     network_tier: "db-private"
     az: "a"
-    volume_size: 60
+    volume_size: 210
     volume_encrypted: yes
     group: "kafka"
     os: jammy 
@@ -302,7 +329,7 @@ servers:
     server_instance_type: t3a.medium
     network_tier: "db-private"
     az: "b"
-    volume_size: 60
+    volume_size: 210
     volume_encrypted: yes
     group: "kafka"
     os: jammy 
@@ -311,19 +338,11 @@ servers:
     server_instance_type: t3a.medium
     network_tier: "db-private"
     az: "c"
-    volume_size: 60
+    volume_size: 210
     volume_encrypted: yes
     group: "kafka"
     os: jammy 
 
-  - server_name: "pgbouncer_a1-production" # host and pgbouncer_host for pl/proxys
-    server_instance_type: r5a.2xlarge
-    network_tier: "db-private"
-    az: "a"
-    volume_size: 200
-    volume_encrypted: yes
-    group: "postgresql"
-    os: bionic
   - server_name: "pgbouncer_a4-production"  # pgbouncer_host for pgmain,  formplayer
     server_instance_type: t3a.large
     network_tier: "db-private"
@@ -340,6 +359,14 @@ servers:
     volume_encrypted: yes
     group: "postgresql"
     os: jammy
+  - server_name: "pgbouncer_a6-production" # host and pgbouncer_host for pl/proxys
+    server_instance_type: r6a.xlarge
+    network_tier: "db-private"
+    az: "a"
+    volume_size: 200
+    volume_encrypted: yes
+    group: "postgresql"
+    os: jammy
   - server_name: "pgbouncer_b2-production"  # pgbouncer_host for pgmain, formplayer
     server_instance_type: t3a.large
     network_tier: "db-private"
@@ -352,14 +379,6 @@ servers:
     server_instance_type: t3a.large
     network_tier: "db-private"
     az: "b"
-    volume_size: 80
-    volume_encrypted: yes
-    group: "postgresql"
-    os: jammy
-  - server_name: "pgbouncer_c1-production"  # pgbouncer_host for pgmain, formplayer
-    server_instance_type: t3a.large
-    network_tier: "db-private"
-    az: "c"
     volume_size: 80
     volume_encrypted: yes
     group: "postgresql"
@@ -381,7 +400,7 @@ servers:
 
 proxy_servers:
   - server_name: "proxy_a3-production"
-    server_instance_type: "t3.large"
+    server_instance_type: "t3a.large"
     network_tier: "app-private"
     az: "a"
     volume_size: 80
@@ -390,7 +409,7 @@ proxy_servers:
     os: jammy
 
   - server_name: "proxy_b3-production"
-    server_instance_type: "t3.large"
+    server_instance_type: "t3a.large"
     network_tier: "app-private"
     az: "b"
     volume_size: 80
@@ -398,23 +417,17 @@ proxy_servers:
     group: "proxy"
     os: jammy
 
-  - server_name: "proxy_c3-production"
-    server_instance_type: "t3.large"
-    network_tier: "app-private"
-    az: "c"
-    volume_size: 80
-    volume_encrypted: yes
-    group: "proxy"
-    os: jammy
-
 rds_instances:
   - identifier: "pgmain1-production"
-    instance_type: "db.m5.4xlarge"
+    instance_type: "db.m6g.4xlarge"
     storage: 2000
+    storage_type: gp3
+    storage_throughput: 500
     multi_az: true
-    engine_version: "14"
+    engine_version: "14.18"
     backup_window: "23:00-01:00"
     backup_retention: 7
+    iops: 12000
     enable_cross_region_backup: true
     params:
       shared_preload_libraries: pg_stat_statements,pg_transport
@@ -430,11 +443,12 @@ rds_instances:
       max_connections: "LEAST({DBInstanceClassMemory/9531392},5000)"
 
   - identifier: "pgucr0-production"
-    instance_type: "db.m5.2xlarge"
+    instance_type: "db.m6g.2xlarge"
     storage: 850
     max_storage: 5000
+    storage_type: gp3
     multi_az: true
-    engine_version: "14"
+    engine_version: "14.18"
     backup_window: "23:00-01:00"
     backup_retention: 7
     enable_cross_region_backup: true
@@ -442,12 +456,13 @@ rds_instances:
       max_connections: "LEAST({DBInstanceClassMemory/9531392},5000)"
 
   - identifier: "pgshard1-production"
-    instance_type: "db.m5.2xlarge"
+    instance_type: "db.m6g.2xlarge"
     storage: 750
     max_storage: 2500
     storage_type: gp3
+    iops: 12000
     multi_az: true
-    engine_version: "14"
+    engine_version: "14.18"
     backup_window: "23:00-01:00"
     backup_retention: 7
     enable_cross_region_backup: true
@@ -457,12 +472,13 @@ rds_instances:
       max_connections: "LEAST({DBInstanceClassMemory/9531392},5000)"
 
   - identifier: "pgshard2-production"
-    instance_type: "db.m5.2xlarge"
+    instance_type: "db.m6g.2xlarge"
     storage: 750
     max_storage: 2500
     storage_type: gp3
+    iops: 12000
     multi_az: true
-    engine_version: "14"
+    engine_version: "14.18"
     backup_window: "23:00-01:00"
     backup_retention: 7
     enable_cross_region_backup: true
@@ -472,12 +488,13 @@ rds_instances:
       max_connections: "LEAST({DBInstanceClassMemory/9531392},5000)"
 
   - identifier: "pgshard3-production"
-    instance_type: "db.m5.2xlarge"
+    instance_type: "db.m6g.2xlarge"
     storage: 750
     max_storage: 2500
     storage_type: gp3
+    iops: 12000
     multi_az: true
-    engine_version: "14"
+    engine_version: "14.18"
     backup_window: "23:00-01:00"
     backup_retention: 7
     enable_cross_region_backup: true
@@ -487,12 +504,13 @@ rds_instances:
       max_connections: "LEAST({DBInstanceClassMemory/9531392},5000)"
 
   - identifier: "pgshard4-production"
-    instance_type: "db.m5.2xlarge"
+    instance_type: "db.m6g.2xlarge"
     storage: 750
     max_storage: 2500
     storage_type: gp3
+    iops: 12000
     multi_az: true
-    engine_version: "14"
+    engine_version: "14.18"
     backup_window: "23:00-01:00"
     backup_retention: 7
     enable_cross_region_backup: true
@@ -502,12 +520,13 @@ rds_instances:
       max_connections: "LEAST({DBInstanceClassMemory/9531392},5000)"
 
   - identifier: "pgshard5-production"
-    instance_type: "db.m5.2xlarge"
+    instance_type: "db.m6g.2xlarge"
     storage: 750
     max_storage: 2500
     storage_type: gp3
+    iops: 12000
     multi_az: true
-    engine_version: "14"
+    engine_version: "14.18"
     backup_window: "23:00-01:00"
     backup_retention: 7
     enable_cross_region_backup: true
@@ -517,10 +536,11 @@ rds_instances:
       max_connections: "LEAST({DBInstanceClassMemory/9531392},5000)"
 
   - identifier: "pgsynclog2-production"
-    instance_type: "db.m5.xlarge"
+    instance_type: "db.m6g.xlarge"
     storage: 1000
+    storage_type: gp3
     multi_az: true
-    engine_version: "14"
+    engine_version: "14.18"
     backup_retention: 7
     params:
       shared_preload_libraries: pg_stat_statements,pg_transport
@@ -538,10 +558,11 @@ rds_instances:
       autovacuum_vacuum_cost_limit: 2000
 
   - identifier: "pgformplayer2-production"
-    instance_type: "db.m5.large"
+    instance_type: "db.t4g.large"
     storage: 200
+    storage_type: gp3
     multi_az: true
-    engine_version: "14"
+    engine_version: "14.18"
     backup_retention: 7
     params:
       shared_preload_libraries: pg_stat_statements,pg_transport
@@ -559,10 +580,11 @@ rds_instances:
       track_io_timing: 1
 
   - identifier: "pgauditcare1-production"
-    instance_type: "db.m5.xlarge"
-    storage: 7000
+    instance_type: "db.r8g.large"
+    storage: 7700
+    storage_type: gp3
     multi_az: true
-    engine_version: "14"
+    engine_version: "14.18"
     backup_window: "23:00-01:00"
     backup_retention: 7
     enable_cross_region_backup: true
@@ -586,12 +608,10 @@ pgbouncer_nlbs:
     targets:
       - pgbouncer_a4-production
       - pgbouncer_b2-production
-      - pgbouncer_c1-production
   - name: pgmain_nlb-production
     targets:
       - pgbouncer_a4-production
       - pgbouncer_b2-production
-      - pgbouncer_c1-production
   - name: pgucr_nlb-production
     targets:
       - pgbouncer13-production
@@ -612,18 +632,16 @@ internal_albs:
     target_port: 15984
     health_check_interval: 30
     targets:
-      - couch11-production
-      - couch12-production
-      - couch13-production
-
-elasticache:
-  create: no
+      - couch_a0-production
+      - couch_a1-production
+      - couch_a2-production
 
 elasticache_cluster:
   create: yes
-  cache_node_type: "cache.r6g.xlarge"
+  cache_node_type: "cache.r6g.large"
   cache_engine_version: "7.0"
-  cache_prameter_group: "default.redis7"
+  params:
+    maxmemory-policy: 'allkeys-lru'
   automatic_failover: true
   transit_encryption: false
   at_rest_encryption: true
@@ -648,3 +666,13 @@ efs_file_systems:
     create_record: yes
     domain_name: "production.commcare.local"
     route_names: "shared-efs"
+
+terraform_imports:
+  - to: module.logshipping.aws_cloudwatch_event_rule.config-changes
+    id: default/ConfigChanges
+  - to: module.logshipping.aws_cloudwatch_event_target.config-changes
+    id: default/ConfigChanges/Id27473066087598
+  - to: module.logshipping.aws_cloudwatch_log_group.config-changes
+    id: /aws/events/config-changes
+  - to: aws_guardduty_detector.detector
+    id: 9eb3966fab99cbe22172e608d5fda108

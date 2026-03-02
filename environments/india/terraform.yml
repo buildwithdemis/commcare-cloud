@@ -1,10 +1,10 @@
 account_alias: commcare-india
-terraform_version: '1.3'
+terraform_version: '1.13'
 state_bucket: dimagi-terraform
 state_bucket_region: "us-east-1"
 region: "ap-south-1"
 environment: "india"
-ssl_policy: 'ELBSecurityPolicy-FS-1-2-Res-2020-10'
+ssl_policy: 'ELBSecurityPolicy-TLS13-1-2-Res-2021-06'
 azs:
   - "ap-south-1a"
   - "ap-south-1b"
@@ -15,7 +15,6 @@ az_codes:
   - c
 vpc_begin_range: "10.203"
 
-openvpn_image: ami-085d67fbfe42a25e7
 
 vpn_connections: []
 
@@ -23,84 +22,84 @@ external_routes: []
 
 ec2_metadata_tokens_required: yes
 servers:
-  - server_name: "control1-india"
+  - server_name: "control2-india"
     server_instance_type: "t3a.medium"
     network_tier: "app-private"
     az: "a"
     volume_size: 80
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     group: control
-    os: jammy 
+    os: jammy
 
-  - server_name: "djangomanage1-india"
-    server_instance_type: "t3.small"
+  - server_name: "djangomanage3-india"
+    server_instance_type: "t3a.small"
     network_tier: "app-private"
     az: "a"
     volume_size: 80
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
-    group: control
-    os: bionic
+    group: django_manage
+    os: jammy
 
-  - server_name: "web4-india"
-    server_instance_type: "r5a.xlarge"
+  - server_name: "web6-india"
+    server_instance_type: "r6a.large"
     network_tier: "app-private"
     az: "a"
     volume_size: 80
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
-    group: control
+    group: webworkers
     os: jammy
     server_auto_recovery: true
 
-  - server_name: "web5-india"
-    server_instance_type: "r5a.xlarge"
+  - server_name: "web7-india"
+    server_instance_type: "r6a.large"
     network_tier: "app-private"
     az: "b"
     volume_size: 80
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
-    group: control
+    group: webworkers
     os: jammy
     server_auto_recovery: true
 
-  - server_name: "celery7-india"
+  - server_name: "celerybeat_a2-india"
     server_instance_type: "t3a.xlarge"
     network_tier: "app-private"
     az: "a"
     volume_size: 60
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     group: celery
     os: jammy
 
-  - server_name: "celery8-india"
-    server_instance_type: "t3a.xlarge"
+  - server_name: "celery14-india"
+    server_instance_type: "r6a.large"
+    network_tier: "app-private"
+    az: "a"
+    volume_size: 60
+    volume_encrypted: yes
+    volume_type: "gp3"
+    group: celery
+    os: jammy
+
+  - server_name: "celery15-india"
+    server_instance_type: "r6a.large"
     network_tier: "app-private"
     az: "b"
     volume_size: 60
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     group: celery
     os: jammy
 
-  - server_name: "celery9-india"
-    server_instance_type: "t3a.xlarge"
-    network_tier: "app-private"
-    az: "c"
-    volume_size: 60
-    volume_encrypted: no
-    volume_type: "gp3"
-    group: celery
-    os: jammy
- 
   - server_name: "couch10-india"
     server_instance_type: "r5a.xlarge"
     network_tier: "db-private"
     az: "a"
     volume_size: 60
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     block_device:
       volume_size: 80
@@ -114,7 +113,7 @@ servers:
     network_tier: "db-private"
     az: "b"
     volume_size: 60
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     block_device: 
       volume_size: 80
@@ -128,7 +127,7 @@ servers:
     network_tier: "db-private"
     az: "c"
     volume_size: 60
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     block_device:
       volume_size: 80
@@ -137,55 +136,55 @@ servers:
     group: couchdb2
     os: jammy 
 
-  - server_name: "esmaster5-india"
+  - server_name: "esmaster8-india"
     server_instance_type: t3a.medium
     network_tier: "db-private"
     az: "a"
     volume_size: 40
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     group: "elasticsearch"
-    os: jammy 
-    
-  - server_name: "esmaster6-india"
+    os: jammy
+
+  - server_name: "esmaster9-india"
     server_instance_type: t3a.medium
     network_tier: "db-private"
     az: "b"
     volume_size: 40
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     group: "elasticsearch"
-    os: jammy 
-    
-  - server_name: "esmaster7-india"
+    os: jammy
+
+  - server_name: "esmaster10-india"
     server_instance_type: t3a.medium
     network_tier: "db-private"
     az: "c"
     volume_size: 40
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     group: "elasticsearch"
-    os: jammy 
-
-  - server_name: "es4-india"
-    server_instance_type: "t3a.xlarge"
-    network_tier: "db-private"
-    az: "a"
-    volume_size: 150
-    volume_encrypted: no
-    volume_type: "gp3"
-    group: elasticsearch
-    os: jammy 
+    os: jammy
 
   - server_name: "es5-india"
-    server_instance_type: "t3a.xlarge"
+    server_instance_type: "r6a.large"
     network_tier: "db-private"
     az: "b"
-    volume_size: 150
+    volume_size: 300
     volume_encrypted: yes
     volume_type: "gp3"
     group: elasticsearch
     os: jammy 
+
+  - server_name: "es6-india"
+    server_instance_type: "r6a.large"
+    network_tier: "db-private"
+    az: "a"
+    volume_size: 300
+    volume_encrypted: yes
+    volume_type: "gp3"
+    group: elasticsearch
+    os: jammy
 
   - server_name: "escoordinator7-india"
     server_instance_type: "t3a.large"
@@ -207,38 +206,28 @@ servers:
     group: elasticsearch
     os: jammy 
 
-  - server_name: "escoordinator9-india"
-    server_instance_type: "t3a.large"
-    network_tier: "db-private"
-    az: "c"
-    volume_size: 40
-    volume_encrypted: yes
-    volume_type: "gp3"
-    group: elasticsearch
-    os: jammy 
-
-  - server_name: "formplayer2-india"
-    server_instance_type: "t3a.xlarge"
+  - server_name: "formplayer3-india"
+    server_instance_type: "r6a.large"
     network_tier: "app-private"
     az: "a"
     volume_size: 200
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     group: formplayer
     os: jammy
     server_auto_recovery: true
 
-  - server_name: "pillow4-india"
+  - server_name: "pillow5-india"
     server_instance_type: "t3a.xlarge"
     network_tier: "app-private"
     az: "a"
     volume_size: 60
-    volume_encrypted: no
+    volume_encrypted: yes
     volume_type: "gp3"
     group: pillowtop
     os: jammy
 
-  - server_name: "kafka_a1-india"
+  - server_name: "kafka_a2-india"
     server_instance_type: "t3a.medium"
     network_tier: "db-private"
     az: "a"
@@ -247,8 +236,8 @@ servers:
     volume_type: "gp3"
     group: kafka
     os: jammy 
-
-  - server_name: "kafka_b1-india"
+    
+  - server_name: "kafka_b2-india"
     server_instance_type: "t3a.medium"
     network_tier: "db-private"
     az: "b"
@@ -257,26 +246,16 @@ servers:
     volume_type: "gp3"
     group: kafka
     os: jammy 
-
-  - server_name: "kafka_c1-india"
+    
+  - server_name: "kafka_b3-india"
     server_instance_type: "t3a.medium"
     network_tier: "db-private"
-    az: "c"
+    az: "b"
     volume_size: 30
     volume_encrypted: yes
     volume_type: "gp3"
     group: kafka
-    os: jammy 
-
-  - server_name: "pgbouncer0-india"
-    server_instance_type: t3.small
-    network_tier: "db-private"
-    az: "a"
-    volume_size: 80
-    volume_encrypted: no
-    volume_type: "gp3"
-    group: "postgresql"
-    os: bionic
+    os: jammy
 
   - server_name: "pgbouncer5-india"
     server_instance_type: t3a.small
@@ -292,6 +271,16 @@ servers:
     server_instance_type: t3a.small
     network_tier: "db-private"
     az: "c"
+    volume_size: 80
+    volume_encrypted: yes
+    volume_type: "gp3"
+    group: "postgresql"
+    os: jammy
+
+  - server_name: "pgbouncer8-india"
+    server_instance_type: t3a.small
+    network_tier: "db-private"
+    az: "a"
     volume_size: 80
     volume_encrypted: yes
     volume_type: "gp3"
@@ -320,7 +309,7 @@ servers:
 
 proxy_servers:
   - server_name: "proxy_a1-india"
-    server_instance_type: "t3a.medium"
+    server_instance_type: "t3a.large"
     network_tier: "app-private"
     az: "a"
     volume_size: 80
@@ -330,7 +319,7 @@ proxy_servers:
     os: jammy
 
   - server_name: "proxy_b1-india"
-    server_instance_type: "t3a.medium"
+    server_instance_type: "t3a.large"
     network_tier: "app-private"
     az: "b"
     volume_size: 80
@@ -341,25 +330,31 @@ proxy_servers:
 
 rds_instances:
   - identifier: "pgmain0-india"
-    instance_type: "db.t3.large"
+    instance_type: "db.t4g.medium"
     storage: 500
+    storage_type: gp3
     multi_az: true
-    engine_version: "14.4"
+    engine_version: "14.18"
+    params:
+      max_connections: "125"
+
 
 pgbouncer_nlbs:
   - name: pgformplayer_nlb-india
     targets:
-      - pgbouncer0-india
       - pgbouncer5-india
+      - pgbouncer6-india
   - name: pgmain_nlb-india
     targets:
-      - pgbouncer0-india
+      - pgbouncer5-india
+      - pgbouncer6-india
   - name: pgucr_nlb-india
     targets:
-      - pgbouncer0-india
+      - pgbouncer8-india
   - name: pgsynclogs_nlb-india
     targets:
-      - pgbouncer0-india
+      - pgbouncer5-india
+      - pgbouncer6-india
   - name: pgshard_nlb-india
     targets:
       - pgbouncer5-india
@@ -376,9 +371,10 @@ internal_albs:
 
 elasticache_cluster:
   create: yes
-  cache_node_type: "cache.t4g.medium"
+  cache_node_type: "cache.t4g.small"
   cache_engine_version: "7.0"
-  cache_prameter_group: "default.redis7"
+  params:
+    maxmemory-policy: 'allkeys-lru'
   automatic_failover: true
   transit_encryption: false
   at_rest_encryption: true
@@ -404,3 +400,11 @@ efs_file_systems:
     create_record: yes
     domain_name: "india.commcare.local"
     route_names: "shared-efs"
+
+terraform_imports:
+  - to: module.logshipping.aws_cloudwatch_event_rule.config-changes
+    id: default/config-changes
+  - to: module.logshipping.aws_cloudwatch_event_target.config-changes
+    id: default/config-changes/Id5885852165010
+  - to: module.logshipping.aws_cloudwatch_log_group.config-changes
+    id: /aws/events/config-changes

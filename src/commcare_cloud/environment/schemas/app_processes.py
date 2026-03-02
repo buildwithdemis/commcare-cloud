@@ -1,14 +1,9 @@
-from __future__ import print_function
-
-from __future__ import absolute_import
-from __future__ import unicode_literals
 from collections import Counter, namedtuple
 
 import jsonobject
 from clint.textui import puts, indent
 
 from commcare_cloud.colors import color_warning
-import six
 
 IpAddressProperty = jsonobject.StringProperty
 IpAddressAndPortProperty = jsonobject.StringProperty
@@ -24,16 +19,20 @@ class CeleryOptions(jsonobject.JsonObject):
     max_tasks_per_child = jsonobject.IntegerProperty(default=None)
     num_workers = jsonobject.IntegerProperty(default=1)
     prefetch_multiplier = jsonobject.IntegerProperty(default=4)
+    env_vars = jsonobject.DictProperty()
 
 
 class PillowOptions(jsonobject.JsonObject):
     _allow_dynamic_properties = False
     start_process = jsonobject.IntegerProperty(default=0)
     num_processes = jsonobject.IntegerProperty(default=1)
+    gevent_workers = jsonobject.IntegerProperty(default=0)
     dedicated_migration_process = jsonobject.BooleanProperty(default=False)
     total_processes = jsonobject.IntegerProperty(default=None, exclude_if_none=True)
     processor_chunk_size = jsonobject.IntegerProperty(default=None, exclude_if_none=True)
     exclude_ucrs = jsonobject.StringProperty(default=None, exclude_if_none=True)
+    env_vars = jsonobject.DictProperty()
+    process = jsonobject.DictProperty()
 
 
 class AppProcessesConfig(jsonobject.JsonObject):
@@ -47,16 +46,16 @@ class AppProcessesConfig(jsonobject.JsonObject):
     formplayer_maxmetaspacesize = MemorySpecProperty()
     formplayer_g1heapregionsize = MemorySpecProperty()
     http_proxy = IpAddressAndPortProperty()
-    django_command_prefix = jsonobject.StringProperty()
+    django_command_prefix = jsonobject.StringProperty()  # obsolete for ddtrace-run; use DD_TRACE_ENABLED=True
     celery_command_prefix = jsonobject.StringProperty()
     formplayer_command_args = jsonobject.StringProperty()
-    datadog_pythonagent = jsonobject.BooleanProperty()
     additional_no_proxy_hosts = CommaSeparatedStrings()
 
-    service_blacklist = jsonobject.ListProperty(six.text_type)
+    service_blacklist = jsonobject.ListProperty(str)
     management_commands = jsonobject.DictProperty(jsonobject.DictProperty())
     celery_processes = jsonobject.DictProperty(jsonobject.DictProperty(CeleryOptions))
     pillows = jsonobject.DictProperty(jsonobject.DictProperty(PillowOptions))
+    webworkers = jsonobject.DictProperty()
 
     celery_heartbeat_thresholds = jsonobject.DictProperty(int)
 
@@ -114,6 +113,7 @@ CELERY_PROCESSES = [
     CeleryProcess("celery", blockage_threshold=60),
     CeleryProcess("celery_periodic", required=False, blockage_threshold=10 * 60),
     CeleryProcess("dashboard_comparison_queue", required=False),
+    CeleryProcess("repeat_record_datasource_queue", required=False),
     CeleryProcess("email_queue", blockage_threshold=30),
     CeleryProcess("export_download_queue", blockage_threshold=30),
     CeleryProcess("flower", is_queue=False),
@@ -131,12 +131,13 @@ CELERY_PROCESSES = [
     CeleryProcess("saved_exports_queue", blockage_threshold=6 * 60 * 60),
     CeleryProcess("sumologic_logs_queue", required=False, blockage_threshold=6 * 60 * 60),
     CeleryProcess("send_report_throttled", required=False, blockage_threshold=6 * 60 * 60),
-    CeleryProcess("sms_queue", required=False, blockage_threshold=5 * 60), # TODO remove required
+    CeleryProcess("sms_queue", required=False, blockage_threshold=5 * 60),  # TODO remove required
     CeleryProcess("submission_reprocessing_queue", required=False, blockage_threshold=60 * 60),
     CeleryProcess("ucr_indicator_queue", required=False, blockage_threshold=60 * 60),
     CeleryProcess("ucr_queue", required=False, blockage_threshold=60 * 60),
     CeleryProcess("user_import_queue", required=False, blockage_threshold=60 * 60),
-    CeleryProcess("ush_background_tasks", required=False, blockage_threshold=3 * 60 * 60)
+    CeleryProcess("ush_background_tasks", required=False, blockage_threshold=3 * 60 * 60),
+    CeleryProcess("geospatial_queue", required=False, blockage_threshold=6 * 60 * 60)
 ]
 
 

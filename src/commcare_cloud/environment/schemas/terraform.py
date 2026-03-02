@@ -1,13 +1,7 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import json
 import re
 
 import jsonobject
-from clint.textui import puts
-from commcare_cloud.colors import color_warning
-from six.moves import range
 
 
 class TerraformConfig(jsonobject.JsonObject):
@@ -16,15 +10,19 @@ class TerraformConfig(jsonobject.JsonObject):
     account_alias = jsonobject.StringProperty()
     username = jsonobject.StringProperty()
     password = jsonobject.StringProperty()
-    terraform_version = jsonobject.StringProperty(choices=['0.12', '0.13', '0.14', '0.15', '1.0', '1.1', '1.2', '1.3'])
+    terraform_version = jsonobject.StringProperty(
+        choices=[
+            '0.12', '0.13', '0.14', '0.15',
+            '1.0', '1.1', '1.2', '1.3',
+            '1.4', '1.5', '1.6', '1.7',
+            '1.8', '1.9', '1.10', '1.11',
+            '1.12', '1.13'
+        ])
     manage_users = jsonobject.BooleanProperty(default=True)
     state_bucket = jsonobject.StringProperty()
     state_bucket_region = jsonobject.StringProperty()
     region = jsonobject.StringProperty()
     environment = jsonobject.StringProperty()
-    openvpn_image = jsonobject.StringProperty()
-    openvpn_instance_type = jsonobject.StringProperty()
-    openvpn_az = jsonobject.StringProperty()
     azs = jsonobject.ListProperty(str)
     az_codes = jsonobject.ListProperty(str, default=['a', 'b', 'c'])
     ssl_policy = jsonobject.StringProperty(default="ELBSecurityPolicy-2016-08")
@@ -38,13 +36,15 @@ class TerraformConfig(jsonobject.JsonObject):
     rds_instances = jsonobject.ListProperty(lambda: RdsInstanceConfig)
     pgbouncer_nlbs = jsonobject.ListProperty(lambda: PgbouncerNlbs)
     internal_albs = jsonobject.ListProperty(lambda: InternalAlbs)
-    elasticache = jsonobject.ObjectProperty(lambda: ElasticacheConfig, default=None)
     elasticache_cluster = jsonobject.ObjectProperty(lambda: ElasticacheClusterConfig, default=None)
+    elasticache_celery_broker = jsonobject.ObjectProperty(lambda: ElasticacheClusterConfig, default=None)
     r53_private_zone = jsonobject.ObjectProperty(lambda: RoutePrivateZoneConfig, default=None)
+    r53_records = jsonobject.ListProperty(lambda: Route53RecordConfig, default=list)
     efs_file_systems = jsonobject.ListProperty(lambda: EfsFileSystem, default=None)
     ec2_auto_recovery = jsonobject.ListProperty(lambda: Ec2AutoRecovery, default=None)
     fsx_file_systems = jsonobject.ListProperty(lambda: FsxFileSystem, default=None)
-    awsmq = jsonobject.ObjectProperty(lambda: awsmqConfig, default=None)
+    terraform_imports = jsonobject.ListProperty(lambda: TerraformImportsConfig, default=list)
+    skip_ebs_snapshots = jsonobject.StringProperty(default="no")
 
     @classmethod
     def wrap(cls, data):
@@ -70,6 +70,16 @@ class TerraformConfig(jsonobject.JsonObject):
             '1.1': "~> 1.1, < 1.2",
             '1.2': "~> 1.2, < 1.3",
             '1.3': "~> 1.3, < 1.4",
+            '1.4': "~> 1.4, < 1.5",
+            '1.5': "~> 1.5, < 1.6",
+            '1.6': "~> 1.6, < 1.7",
+            '1.7': "~> 1.7, < 1.8",
+            '1.8': "~> 1.8, < 1.9",
+            '1.9': "~> 1.9, < 1.10",
+            '1.10': "~> 1.10, < 1.11",
+            '1.11': "~> 1.11, < 1.12",
+            '1.12': "~> 1.12, < 1.13",
+            '1.13': "~> 1.13, < 1.14",
         }[self.terraform_version]
         # Using the |tojson jinja2 filter replaces < and > with their \u-style escape code.
         # As a workaround, we use `"{{ terraform_version_range_string }}"`,
@@ -104,6 +114,7 @@ class BackupPlan(jsonobject.JsonObject):
     weekly_retention = jsonobject.IntegerProperty()
     monthly_retention = jsonobject.IntegerProperty()
     quarterly_retention = jsonobject.IntegerProperty()
+    cold_storage_after = jsonobject.IntegerProperty()
 
 
 class ServerConfig(jsonobject.JsonObject):
@@ -117,7 +128,8 @@ class ServerConfig(jsonobject.JsonObject):
     volume_encrypted = jsonobject.BooleanProperty(default=True, required=True)
     block_device = jsonobject.ObjectProperty(lambda: BlockDevice, default=None)
     group = jsonobject.StringProperty()
-    os = jsonobject.StringProperty(required=True, choices=['bionic', 'ubuntu_pro_bionic', 'jammy'])
+    os = jsonobject.StringProperty(required=True, choices=['bionic', 'jammy'])
+    additional_tags = jsonobject.DictProperty()
     server_auto_recovery = jsonobject.BooleanProperty(default=False)
     enable_cross_region_backup = jsonobject.BooleanProperty(default=False)
     count = jsonobject.IntegerProperty(default=None)
@@ -177,6 +189,8 @@ class RdsInstanceConfig(jsonobject.JsonObject):
     storage = jsonobject.IntegerProperty(required=True)
     max_storage = jsonobject.IntegerProperty(default=0)
     storage_type = jsonobject.StringProperty(default='gp2', choices=['gp2', 'gp3', 'io1', 'standard'])
+    iops = jsonobject.IntegerProperty(default=None)
+    storage_throughput = jsonobject.IntegerProperty(default=None)
     create = jsonobject.BooleanProperty(default=True)
     username = "root"
     backup_window = jsonobject.StringProperty(default="06:27-06:57")
@@ -216,8 +230,10 @@ class PgbouncerNlbs(jsonobject.JsonObject):
         if not self.identifier:
             self.identifier = self.name.replace('_', '-')
         if not re.match('[a-z]+-nlb-[a-z]+', self.identifier):
-            raise ValueError("commcare-cloud requires pgbouncer nlb identifier to be of the form 'pg{name}-nlb-{environment}'")
+            raise ValueError("commcare-cloud requires pgbouncer nlb identifier to be "
+                             "of the form 'pg{name}-nlb-{environment}'")
         return self
+
 
 class InternalAlbs(jsonobject.JsonObject):
     _allow_dynamic_properties = False
@@ -227,14 +243,17 @@ class InternalAlbs(jsonobject.JsonObject):
     target_port = jsonobject.IntegerProperty(required=True)
     listener_port = jsonobject.IntegerProperty(required=True)
     health_check_interval = jsonobject.IntegerProperty(default=30)
+
     @classmethod
     def wrap(cls, data):
         self = super(InternalAlbs, cls).wrap(data)
         if not self.identifier:
             self.identifier = self.name.replace('_', '-')
         if not re.match('[a-z]+-alb-[a-z]+', self.identifier):
-            raise ValueError("commcare-cloud requires internal alb identifier to be of the form 'internal{name}-alb-{environment}'")
+            raise ValueError("commcare-cloud requires internal alb identifier to be "
+                             "of the form 'internal{name}-alb-{environment}'")
         return self
+
 
 class ElasticacheConfig(jsonobject.JsonObject):
     _allow_dynamic_properties = False
@@ -244,13 +263,14 @@ class ElasticacheConfig(jsonobject.JsonObject):
     engine_version = jsonobject.StringProperty(default="4.0.10")
     parameter_group_name = jsonobject.StringProperty(default="default.redis4.0")
 
+
 class ElasticacheClusterConfig(jsonobject.JsonObject):
     _allow_dynamic_properties = False
     create = jsonobject.BooleanProperty(default=True)
     cache_node_type = jsonobject.StringProperty(default="cache.t3.micro")
     cache_engine = jsonobject.StringProperty(default="redis")
     cache_engine_version = jsonobject.StringProperty(default="4.0.10")
-    cache_prameter_group = jsonobject.StringProperty(default="default.redis4.0")
+    params = jsonobject.DictProperty()
     automatic_failover = jsonobject.BooleanProperty(default=True)
     transit_encryption = jsonobject.BooleanProperty(default=False)
     at_rest_encryption = jsonobject.BooleanProperty(default=True)
@@ -261,20 +281,6 @@ class ElasticacheClusterConfig(jsonobject.JsonObject):
     snapshot_retention = jsonobject.IntegerProperty(default=5)
     snapshot_window = jsonobject.StringProperty(default="07:30-08:30")
 
-class awsmqConfig(jsonobject.JsonObject):
-    _allow_dynamic_properties = False
-    create = jsonobject.BooleanProperty(default=True)
-    broker_name = jsonobject.StringProperty(default="mq-broker")
-    apply_immediately = jsonobject.BooleanProperty(default=True)
-    auto_minor_version_upgrade = jsonobject.BooleanProperty(default=False)
-    deployment_mode = jsonobject.StringProperty(default="CLUSTER_MULTI_AZ")
-    engine_type = jsonobject.StringProperty(default="RabbitMQ")
-    engine_version = jsonobject.StringProperty(default="3.10.10")
-    host_instance_type = jsonobject.StringProperty(default="mq.m5.large")   
-    publicly_accessible = jsonobject.BooleanProperty(default=False)
-    logs_general = jsonobject.BooleanProperty(default=True)
-    audit_log_enabled = jsonobject.BooleanProperty(default=False) 
-    encryption_enabled = jsonobject.BooleanProperty(default=False)     
 
 class RoutePrivateZoneConfig(jsonobject.JsonObject):
     _allow_dynamic_properties = False
@@ -282,6 +288,16 @@ class RoutePrivateZoneConfig(jsonobject.JsonObject):
     domain_name = jsonobject.StringProperty()
     create_record = jsonobject.BooleanProperty(default=True)
     route_names = jsonobject.StringProperty()
+
+
+class Route53RecordConfig(jsonobject.JsonObject):
+    _allow_dynamic_properties = False
+    domain_name = jsonobject.StringProperty(required=True)
+    route_name = jsonobject.StringProperty(required=True)
+    record_type = jsonobject.StringProperty(default='CNAME')
+    ttl = jsonobject.IntegerProperty(default=300)
+    records = jsonobject.ListProperty(str, required=True)
+
 
 class EfsFileSystem(jsonobject.JsonObject):
     _allow_dynamic_properties = False
@@ -295,10 +311,12 @@ class EfsFileSystem(jsonobject.JsonObject):
     record_type = jsonobject.StringProperty(default="CNAME")
     route_names = jsonobject.StringProperty(required=True)
 
+
 class Ec2AutoRecovery(jsonobject.JsonObject):
     _allow_dynamic_properties = False
     targets = jsonobject.ListProperty(str)
     name_prefix = jsonobject.StringProperty(required=True)
+
 
 class FsxFileSystem(jsonobject.JsonObject):
     _allow_dynamic_properties = False
@@ -306,3 +324,9 @@ class FsxFileSystem(jsonobject.JsonObject):
     fsx_name = jsonobject.StringProperty(required=True)
     storage_capacity = jsonobject.IntegerProperty(required=True)
     throughput_capacity = jsonobject.IntegerProperty(required=True)
+
+
+class TerraformImportsConfig(jsonobject.JsonObject):
+    _allow_dynamic_properties = False
+    to = jsonobject.StringProperty(required=True)
+    id = jsonobject.StringProperty(required=True)

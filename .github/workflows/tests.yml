@@ -27,9 +27,9 @@ jobs:
       TEST: main
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
     - name: Set Up Commcare-Cloud Python Version
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -39,16 +39,6 @@ jobs:
         # Note: the installs must be done in the following order, otherwise the installation of commcare-cloud
         # tries to install from the commcare-cloud-bootstrap.egg_info directory
         pip install -e .[test]
-
-        # setup 3.9 for deploy-stack
-        # may be removed when this file is updated to match global_vars/all.yml:python_version
-        sudo add-apt-repository -y ppa:deadsnakes/ppa
-        sudo apt update
-        sudo apt install python3.9 python3.9-venv
-
-        # Install virtualenv as an isolated global executable for deploy-stack in .tests/tests.sh
-        python3 -m pip install --user pipx
-        pipx install virtualenv
 
     - name: Run tests
       run: |

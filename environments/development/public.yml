@@ -75,7 +75,6 @@ localsettings:
   EMAIL_SMTP_PORT: '1025'
   # use True in prod!
   EMAIL_USE_TLS: no
-  FULLSTORY_ID:
   HQ_INSTANCE: 'dev'
 #  INVOICE_FROM_ADDRESS:
 #  INVOICE_PREFIX:
@@ -98,3 +97,6 @@ commcare_cloud_remote_user: vagrant
 commcare_cloud_root_user: ubuntu
 commcare_cloud_strict_host_key_checking: no
 commcare_cloud_use_vault: no
+
+# add datadisk device for shared directory; applicable for non-monolithic deployments
+datadisk_device: "/dev/xvdbb"

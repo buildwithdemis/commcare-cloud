@@ -43,10 +43,33 @@ locals {
   }
 }
 
+resource "aws_guardduty_detector" "detector" {
+  enable = true
+  finding_publishing_frequency = "SIX_HOURS"
+  datasources {
+    kubernetes {
+        audit_logs {
+            enable = false
+        }
+    }
+    malware_protection {
+        scan_ec2_instance_with_findings {
+            ebs_volumes {
+                enable = false
+            }
+        }
+    }
+    s3_logs {
+        enable = false
+    }
+  }
+}
 
 data "aws_iam_role" "data_lifecycle_role" {
   name = "AWSDataLifecycleManagerDefaultRole"
 }
+
+{% if skip_ebs_snapshots != "yes" %}
 
 resource "aws_dlm_lifecycle_policy" "data_volume_backups" {
   description        = "Data Volume Backup Policy"
@@ -78,6 +101,7 @@ resource "aws_dlm_lifecycle_policy" "data_volume_backups" {
     }
   }
 }
+{% endif %}
 
 {% if backup_plan %}
 module "backup_plan" {
@@ -93,6 +117,7 @@ module "backup_plan" {
   weekly_retention = {{ backup_plan.weekly_retention|tojson }}
   monthly_retention = {{ backup_plan.monthly_retention|tojson }}
   quarterly_retention = {{ backup_plan.quarterly_retention|tojson }}
+  cold_storage_after = {{ backup_plan.cold_storage_after|tojson }}
   providers = {
     aws.remote_region = aws.{{ backup_plan.remote_vault_region }}
   }
@@ -130,10 +155,8 @@ module "server__{{ server_name }}" {
   metadata_tokens = "{{ 'required' if ec2_metadata_tokens_required else 'optional' }}"
   enable_cross_region_backup = {{ server_spec.enable_cross_region_backup|tojson }}
 
-{% if server_spec.os == 'ubuntu_pro_bionic' %}
-  server_image = data.aws_ami.ubuntu_pro_bionic.id
-{% elif server_spec.os == 'bionic' %}
-  server_image = data.aws_ami.ubuntu_bionic.id
+{% if server_spec.os == 'bionic' %}
+  server_image = "deprecated"
 {% elif server_spec.os == 'jammy' %}
   server_image = data.aws_ami.ubuntu_jammy.id
 {% else %}
@@ -145,6 +168,7 @@ module "server__{{ server_name }}" {
   security_group_options = local.security_group_options
   key_name = var.key_name
   group_tag= {{ server_spec.group|tojson }}
+  additional_tags= {{ server_spec.additional_tags|tojson }}
 }
 {%- endfor %}
 {% endfor %}
@@ -195,7 +219,7 @@ module "elasticache-module-base" {
   cache_engine          = {{ elasticache_cluster.cache_engine|tojson }}
   cache_engine_version  = {{ elasticache_cluster.cache_engine_version|tojson }}
   cache_node_type       = {{ elasticache_cluster.cache_node_type|tojson }}
-  cache_prameter_group  = {{ elasticache_cluster.cache_prameter_group|tojson }}
+  params                = {{ elasticache_cluster.params|tojson }}
   automatic_failover    = {{ elasticache_cluster.automatic_failover|tojson }}
   transit_encryption    = {{ elasticache_cluster.transit_encryption|tojson }}
   at_rest_encryption    = {{ elasticache_cluster.at_rest_encryption|tojson }}
@@ -206,7 +230,33 @@ module "elasticache-module-base" {
   snapshot_window       = {{ elasticache_cluster.snapshot_window|tojson }}
   port_number           = 6379
   cluster_size          = {{ elasticache_cluster.cluster_size|tojson }}
-  replication_group_des = "${var.environment}-redis-cluster"
+  description           = "${var.environment}-redis-cluster"
+}
+{% endif %}
+
+{% if elasticache_celery_broker %}
+module "elasticache-celery-broker" {
+  source                = "./modules/elasticache-cluster"
+  create               = "{{ elasticache_celery_broker.create|tojson }}"
+  namespace             = "${var.environment}-elasticache-celery-broker"
+  cluster_id            = "${var.environment}-elasticache-celery-broker"
+  subnet_ids_cache      = values(module.network.subnets-app-private)
+  securitygroup_id      = compact([module.network.db-private-sg, module.network.ssh-sg, module.network.vpn-connections-sg])
+  cache_engine          = {{ elasticache_celery_broker.cache_engine|tojson }}
+  cache_engine_version  = {{ elasticache_celery_broker.cache_engine_version|tojson }}
+  cache_node_type       = {{ elasticache_celery_broker.cache_node_type|tojson }}
+  params                = {{ elasticache_celery_broker.params|tojson }}
+  automatic_failover    = {{ elasticache_celery_broker.automatic_failover|tojson }}
+  transit_encryption    = {{ elasticache_celery_broker.transit_encryption|tojson }}
+  at_rest_encryption    = {{ elasticache_celery_broker.at_rest_encryption|tojson }}
+  multi_az              = {{ elasticache_celery_broker.multi_az|tojson }}
+  auto_minor_version    = {{ elasticache_celery_broker.auto_minor_version|tojson }}
+  maintenance_window    = {{ elasticache_celery_broker.maintenance_window|tojson }}
+  snapshot_retention    = {{ elasticache_celery_broker.snapshot_retention|tojson }}
+  snapshot_window       = {{ elasticache_celery_broker.snapshot_window|tojson }}
+  port_number           = 6379
+  cluster_size          = {{ elasticache_celery_broker.cluster_size|tojson }}
+  description           = "${var.environment}-elasticache-celery-broker"
 }
 {% endif %}
 
@@ -221,6 +271,22 @@ module "r53-private-zone-create" {
   records     = module.elasticache-module-base.primary_configuration_endpoint_address
 }
 {% endif %}
+
+{% for record in r53_records %}
+module "r53_record__{{ record.route_name }}" {
+  source = "./modules/r53-record-create-update"
+  domain_name = {{ record.domain_name|tojson }}
+  route_names = {{ record.route_name|tojson }}
+  records = flatten({{ record.records|tojson }})
+  record_type = {{ record.record_type|tojson }}
+  ttl = {{ record.ttl|tojson }}
+
+  {% if r53_private_zone %}
+  # Ensure we wait for the zone if we are creating it in this same run
+  depends_on = [module.r53-private-zone-create]
+  {% endif %}
+}
+{% endfor %}
 
 module "Users" {
   source = "./modules/iam"
@@ -279,7 +345,13 @@ module "ga_alb_waf" {
   ]
   account_id = {{ account_id|tojson }}
   ssl_policy = {{ ssl_policy|tojson }}
-  commcarehq_xml_post_urls_regex = [{% for regex_string in commcarehq_xml_post_urls_regex %}{
+  commcarehq_ssrf_urls_regex = [{% for regex_string in commcarehq_ssrf_urls_regex %}{
+    regex_string = {{ regex_string|tojson }}
+  },{% endfor %}]
+  commcarehq_xml_post_urls_regex_0 = [{% for regex_string in commcarehq_xml_post_urls_regex_0 %}{
+    regex_string = {{ regex_string|tojson }}
+  },{% endfor %}]
+  commcarehq_xml_post_urls_regex_1 = [{% for regex_string in commcarehq_xml_post_urls_regex_1 %}{
     regex_string = {{ regex_string|tojson }}
   },{% endfor %}]
   commcarehq_xml_querystring_urls_regex = [{% for regex_string in commcarehq_xml_querystring_urls_regex %}{
@@ -377,7 +449,8 @@ module "efs_mount__{{ efs_file_system_mount.efs_name }}__{{ az }}" {
         domain_name = {{ efs_file_system_route53.domain_name|tojson }}
         route_names = {{ efs_file_system_route53.route_names|tojson }}
         records = module.efs_file_system__{{ efs_file_system_route53.efs_name }}.efs_endpoint_address
-      }
+        depends_on = [module.r53-private-zone-create]
+    }
 {% endfor %}
 
 {% endif %}
@@ -396,27 +469,4 @@ module "fsx_file_system__{{ fsx_file_system.efs_name }}" {
 }
 {% endfor %}
 
-{% endif %}
-
-{% if environment == 'testing' %}
-module "awsmq" {
-  source                	= "./modules/awsmq"
-  broker_name             = {{ awsmq.broker_name|tojson }}  
-  vpc_id = module.network.vpc-id  
-  apply_immediately     	=  {{ awsmq.apply_immediately|tojson }}
-  auto_minor_version_upgrade 	= {{ awsmq.auto_minor_version_upgrade|tojson }}
-  deployment_mode 		= {{ awsmq.deployment_mode|tojson }}
-  subnet_ids			    = ["${lookup(module.network.subnets-app-private, "a", "")}"]
-  security_groups    	= compact([module.network.db-private-sg, module.network.ssh-sg, module.network.vpn-connections-sg])
-  environment = var.environment
-  account_alias = var.account_alias
-  username            = var.username
-  password            = var.password
-  engine_type			= {{ awsmq.engine_type|tojson }}
-  engine_version  = {{ awsmq.engine_version|tojson }}
-  host_instance_type 		= {{ awsmq.host_instance_type|tojson }}
-  publicly_accessible		= {{ awsmq.publicly_accessible|tojson }}
-  encryption_enabled    = {{ awsmq.encryption_enabled|tojson }}
-  logs_general          = {{ awsmq.logs_general|tojson }}
-}
 {% endif %}

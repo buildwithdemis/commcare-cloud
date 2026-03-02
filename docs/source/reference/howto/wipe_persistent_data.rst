@@ -1,19 +1,55 @@
 How To Rebuild a CommCare HQ environment
 ========================================
 
-This step deletes all of the CommCare data from your environment and resets to as if it's a new environment.
-In practice, you will likely need this only to delete test environments and not production data. Please understand fully
-before you proceed to perform this as it will permenantly delete all of your data.
+These steps delete *all* CommCare data in your environment.
 
+In practice, you will likely *only* need this to delete test environments. We strongly discourage using any of
+these of steps on production data. Please fully understand this before proceeding as this will permenantly
+delete all of your data.
+
+Prior to Wiping Data
+--------------------
+
+#. Ensure CommCare services are in a healthy state. If you observe any issues, see the Troubleshooting section below.
+
+   .. code-block::
+
+      $ cchq <env_name> django-manage check_services
+
+
+#. If planning to migrate data, deploy CommCare from a specific revision
+
+   .. code-block::
+
+      $ cchq <env_name> deploy commcare --commcare-rev=<commit-hash>
+
+   .. note::
+        You should have been given a commit hash that matches the revision of CommCare used to generate your
+        exported data, and it is critical that this same CommCare revision is used to rebuild the new environment,
+        and load data in. Please request a commit hash if you were not provided one.
+
+#. Stop CommCare services to prevent background processes from writing to databases.
+
+   .. code-block::
+
+      $ cchq <env_name> downtime start
+      # Choose option to kill any running processes when prompted
 
 How To Wipe Persistent Data
 ---------------------------
 
-This step deletes all of the persistent data in BlobDB, Postgres, Couch and Elasticsearch. Note that this works only 
-in the sequence given below, so you shouldn't proceed to next steps until the prior steps are successful.
+These steps are intended to be run in the sequence given below, so you shouldn't proceed to next step until
+the prior step is completed.
 
+#. Ensure CommCare services are stopped to prevent background processes from writing to databases. 
 
-#. Wipe BlobDB, ES, Couch using management commands.
+   .. code-block::
+     
+      $ cchq <env_name> service commcare status
+
+#. Add "wipe_environment_enabled: True" to `public.yml` file.
+
+#. Wipe BlobDB, Elasticsearch, and Couch using management commands.
 
    .. code-block::
 
@@ -21,58 +57,15 @@ in the sequence given below, so you shouldn't proceed to next steps until the pr
       $ cchq <env_name> django-manage wipe_es --commit
       $ cchq <env_name> django-manage delete_couch_dbs --commit
 
-#. Add "wipe_environment_enabled: True" to `public.yml` file.
 
-
-#. Stop CommCare and close Postgres sessions.
+#. Wipe PostgreSQL data (restart first to kill any existing connections)
 
    .. code-block::
 
-      $ cchq <env_name> service commcare stop
-      $ cchq <env_name> service postgresql stop
-      $ cchq <env_name> service postgresql status
-
-
-   If that doesn't stop Postgres and PgBouncer, and if Postgres is
-   running on the same machine as you are logged in on, you can call
-   ``service`` directly:
-
-   .. code-block::
-
-      $ sudo service pgbouncer stop
-      $ sudo service postgresql stop
-      $ sudo service postgresql start
-      $ sudo service pgbouncer start
-
-#. Wipe PostgreSQL databases
-
-   Check status & start postgres if NOT running.
-
-   .. code-block::
-
-      $ cchq <env_name> service postgresql status
-
-   Status should be "OK" for both postgresql and pgbouncer.
-
-   If not running, Start postgresql and pgbouncer through postgresql service
-
-   .. code-block::
-
-      $ cchq <env_name> service postgresql start
-
-   If that does not start both successfully, reset services by running
-
-   .. code-block::
-
-      $ cchq <env_name> ap deploy_postgres.yml
-
-   Check status & once status is "OK", Wipe postgres data
-
-   .. code-block::
-
+      $ cchq <env_name> service postgresql restart
       $ cchq <env_name> ap wipe_postgres.yml
 
-#. Clear the redis cache data
+#. Clear the Redis cache data
 
    .. code-block::
 
@@ -84,51 +77,71 @@ in the sequence given below, so you shouldn't proceed to next steps until the pr
 
       $ cchq <env_name> ap wipe_kafka.yml
 
+#. Remove the "wipe_environment_enabled: True" line in your `public.yml` file.
 
-   You can check they have been removed by confirming that the following shows
-   no output:
-
-**Note**\ : Use below command when the ``kafka version is < 3.x``. The ``--zookeeper`` argument is removed from 3.x.
-
-   .. code-block::
-
-      $ kafka-topics.sh --zookeeper localhost:2181 --list
-
-**Note**\ : Use below command when the ``kafka version is >= 3.x``.
-
-   .. code-block::
-
-      $  kafka-topics.sh --bootstrap-server localhost:9092 --list
 
 Rebuilding environment
 ----------------------
 
-
-#. Remove the "wipe_environment_enabled: True" line in your `public.yml` file.
-
-#. Run Ansible playbook to recreate databases.
+#. Recreate all databases
 
    .. code-block::
 
       $ cchq <env_name> ap deploy_db.yml --skip-check
 
-   Run initial migration
+#. Run migrations for fresh install
 
    .. code-block::
 
       $ cchq <env_name> ap migrate_on_fresh_install.yml -e CCHQ_IS_FRESH_INSTALL=1
 
-#. Run a code deploy to create Kafka topics and Elasticsearch indices.
+#. Create kafka topics
+   
+    .. code-block::
+
+      $ cchq <env_name> django-manage create_kafka_topics
+
+.. warning::
+
+    If you are migrating a project to a new environment, return to the steps outlined in
+    :ref:`import-data-into-environment`. Do not start services back up until you have finished loading
+    data into your new environment.
+
+
+Start new environment
+---------------------
+
+.. note::
+
+   The following steps should only be run if you are **not** planning to migrate a project from an existing environment.
+
+
+#. End downtime (you will encounter a prompt that says no record of downtime was found, continue anyway as this starts services up).
 
    .. code-block::
 
-      $ cchq <env_name> deploy
+      $ cchq <env_name> downtime end
 
 
 #. Recreate a superuser (where you substitute your address in place of
-   "you@your.domain"). This is optional and should not be performed if
-   you are planning to migrate domain from other environment.
+   "you@your.domain").
 
    .. code-block::
 
       $ cchq <env_name> django-manage make_superuser you@your.domain
+
+Troubleshooting
+---------------
+
+Issues with check_services
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Kafka: No Brokers Available - Try resetting Zookeeper by performing the following steps:
+
+  .. code-block::
+    
+     $ cchq monolith service kafka stop
+     NOTE: The following paths may vary if you've specified different paths for ``kafka_data_dir`` and ``zookeeper_data_dir`` 
+     $ rm -rf /var/lib/zookeeper/*
+     $ rm -rf /opt/data/kafka/data/*
+     $ cchq monolith service kafka restart

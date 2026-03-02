@@ -8,6 +8,22 @@ resource "aws_vpc" "main" {
   }
 }
 
+# Manage the default security group to ensure it has no rules
+# This complies with AWS EC2.2 best practice
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
+
+  # Explicitly define empty ingress and egress rules
+  # This removes all default rules
+  ingress = []
+  egress  = []
+
+  tags = {
+    Name        = "default-sg-${var.env}-do-not-use"
+    Description = "Default security group with no rules - do not use"
+  }
+}
+
 resource "aws_subnet" "subnet-app-private" {
   count             = length(var.azs)
   cidr_block        = "${var.vpc_begin_range}.1${count.index}.0/24"
@@ -98,7 +114,16 @@ resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
   dynamic "route" {
-    for_each = var.external_routes
+    for_each = concat(
+      tolist([
+        tomap({
+          cidr_block = "0.0.0.0/0",
+          nat_gateway_id = aws_nat_gateway.main.id,
+        }),
+      ]),
+      var.external_routes,
+    )
+
     content {
       # TF-UPGRADE-TODO: The automatic upgrade tool can't predict
       # which keys might be set in maps assigned here, so it has
@@ -109,7 +134,6 @@ resource "aws_route_table" "private" {
       destination_prefix_list_id = lookup(route.value, "destination_prefix_list_id", null)
       egress_only_gateway_id     = lookup(route.value, "egress_only_gateway_id", null)
       gateway_id                 = lookup(route.value, "gateway_id", null)
-      instance_id                = lookup(route.value, "instance_id", null)
       ipv6_cidr_block            = lookup(route.value, "ipv6_cidr_block", null)
       local_gateway_id           = lookup(route.value, "local_gateway_id", null)
       nat_gateway_id             = lookup(route.value, "nat_gateway_id", aws_nat_gateway.main.id)
@@ -129,7 +153,15 @@ resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
   dynamic "route" {
-    for_each = var.external_routes
+    for_each = concat(
+      tolist([
+        tomap({
+          cidr_block = "0.0.0.0/0",
+          "gateway_id" = aws_internet_gateway.main.id,
+        }),
+      ]),
+      var.external_routes,
+    )
     content {
       # TF-UPGRADE-TODO: The automatic upgrade tool can't predict
       # which keys might be set in maps assigned here, so it has
@@ -141,7 +173,6 @@ resource "aws_route_table" "public" {
       destination_prefix_list_id = lookup(route.value, "destination_prefix_list_id", null)
       egress_only_gateway_id     = lookup(route.value, "egress_only_gateway_id", null)
       gateway_id                 = lookup(route.value, "gateway_id", aws_internet_gateway.main.id)
-      instance_id                = lookup(route.value, "instance_id", null)
       ipv6_cidr_block            = lookup(route.value, "ipv6_cidr_block", null)
       local_gateway_id           = lookup(route.value, "local_gateway_id", null)
       nat_gateway_id             = lookup(route.value, "nat_gateway_id", null)
@@ -180,7 +211,7 @@ resource "aws_route_table_association" "db-private" {
 
 # Setup an Elastic IP to associate with the NAT Gateway.
 resource "aws_eip" "nat_gateway" {
-  vpc = true
+  domain = "vpc"
   tags = {
     Name        = "nat-gateway-ip-${var.env}"
     Environment = "production"

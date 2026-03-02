@@ -4,6 +4,7 @@ postgres_override:
   allow_dump_from_pgstandby: yes
   postgresql_max_connections: 1000
   postgresql_version: '14'
+  postgresql_idle_in_transaction_session_timeout: '86400000'
   postgresql_checkpoint_completion_target: '0.7'
   postgresql_wal_buffers: 16MB
   postgresql_max_wal_size: 2GB
@@ -14,15 +15,6 @@ pgbouncer_override:
   pgbouncer_pool_mode: transaction
   pgbouncer_pool_timeout: 1
   pgbouncer_reserve_pool: 5
-
-pg_repack:
-  pgbouncer_a1:
-    - database: commcarehq_synclogs
-      host: "{{ DEFAULT_POSTGRESQL_HOST }}"
-      username: "{{ postgres_users.root.username }}"
-      password: "{{ postgres_users.root.password }}"
-      port: 5432
-      skip_superuser_check: True
 
 # We're temporarily disabling read replicas
 # and will revisit after migration to RDS
@@ -41,14 +33,13 @@ dbs:
   main:
     host: rds_pgmain1
     pgbouncer_endpoint: pgmain_nlb
-    pgbouncer_pool_size: 36
+    pgbouncer_pool_size: 43
     pgbouncer_reserve_pool_size: 0
     pgbouncer_hosts:
       - pgbouncer_a4
       - pgbouncer_a5
       - pgbouncer_b2
       - pgbouncer_b3
-      - pgbouncer_c1
       - pgbouncer13
       - pgbouncer14
   formplayer:
@@ -60,20 +51,18 @@ dbs:
       - pgbouncer_a5
       - pgbouncer_b2
       - pgbouncer_b3
-      - pgbouncer_c1
       - pgbouncer13
       - pgbouncer14
   ucr:
     host: rds_pgucr0
     pgbouncer_endpoint: pgucr_nlb
-    pgbouncer_pool_size: 10
+    pgbouncer_pool_size: 20
     pgbouncer_reserve_pool_size: 2
     pgbouncer_hosts:
       - pgbouncer_a4
       - pgbouncer_a5
       - pgbouncer_b2
       - pgbouncer_b3
-      - pgbouncer_c1
       - pgbouncer13
       - pgbouncer14
     query_stats: True
@@ -85,7 +74,6 @@ dbs:
       - pgbouncer_a5
       - pgbouncer_b2
       - pgbouncer_b3
-      - pgbouncer_c1
       - pgbouncer13
       - pgbouncer14
   auditcare:
@@ -98,15 +86,26 @@ dbs:
       - pgbouncer_a5
       - pgbouncer_b2
       - pgbouncer_b3
-      - pgbouncer_c1
+      - pgbouncer13
+      - pgbouncer14
+  repeaters:
+    host: rds_pgmain1
+    pgbouncer_endpoint: pgmain_nlb
+    pgbouncer_pool_size: 12
+    pgbouncer_reserve_pool_size: 0
+    pgbouncer_hosts:
+      - pgbouncer_a4
+      - pgbouncer_a5
+      - pgbouncer_b2
+      - pgbouncer_b3
       - pgbouncer13
       - pgbouncer14
   form_processing:
     proxy:
-      host: pgbouncer_a1
-      pgbouncer_endpoint: pgbouncer_a1
+      host: pgbouncer_a6
+      pgbouncer_endpoint: pgbouncer_a6
       pgbouncer_hosts:
-        - pgbouncer_a1
+        - pgbouncer_a6
     partitions:
       p1:
         shards: [0, 204]
@@ -117,7 +116,6 @@ dbs:
           - pgbouncer_a5
           - pgbouncer_b2
           - pgbouncer_b3
-          - pgbouncer_c1
           - pgbouncer13
           - pgbouncer14
       p2:
@@ -129,7 +127,6 @@ dbs:
           - pgbouncer_a5
           - pgbouncer_b2
           - pgbouncer_b3
-          - pgbouncer_c1
           - pgbouncer13
           - pgbouncer14
       p3:
@@ -141,7 +138,6 @@ dbs:
           - pgbouncer_a5
           - pgbouncer_b2
           - pgbouncer_b3
-          - pgbouncer_c1
           - pgbouncer13
           - pgbouncer14
       p4:
@@ -153,7 +149,6 @@ dbs:
           - pgbouncer_a5
           - pgbouncer_b2
           - pgbouncer_b3
-          - pgbouncer_c1
           - pgbouncer13
           - pgbouncer14
       p5:
@@ -165,6 +160,5 @@ dbs:
           - pgbouncer_a5
           - pgbouncer_b2
           - pgbouncer_b3
-          - pgbouncer_c1
           - pgbouncer13
           - pgbouncer14
